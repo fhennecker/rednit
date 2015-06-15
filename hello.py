@@ -29,7 +29,7 @@
 from twisted.internet.defer import inlineCallbacks
 
 from autobahn.twisted.util import sleep
-from autobahn.twisted.wamp import ApplicationSession
+from autobahn.twisted.wamp import ApplicationSession, ApplicationRunner
 from autobahn.wamp.exception import ApplicationError
 
 
@@ -40,10 +40,10 @@ class AppSession(ApplicationSession):
 
         # subscribe to new value events
         def on_arduino_value(msg):
-            print("Received new value " + "msg")
-            yield self.publish("com.java.factory.new_value")
+            print("Received new value " + msg)
+            #yield self.publish("com.java.factory.new_value")
 
-        sub = yield self.subscribe(on_arduino_value, 'com.java.factory.on_arduino_value')
+        yield self.register(on_arduino_value, 'com.java.factory.on_arduino_value')
 
 
         # REGISTER a procedure for remote calling
@@ -71,3 +71,7 @@ class AppSession(ApplicationSession):
         #     if e.error != 'wamp.error.no_such_procedure':
         #         raise e
 
+
+if __name__ == "__main__":
+    runner = ApplicationRunner(url =u"ws://127.0.0.1:8080/ws", realm=u"realm1")
+    runner.run(AppSession)
