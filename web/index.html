@@ -38,16 +38,27 @@
 
             $('#container').highcharts({
                chart: {
-                   type: 'spline',
-                   animation: Highcharts.svg, // don't animate in old IE
-                   marginRight: 10,
-                   events: {
+                  type: 'spline',
+                  animation: Highcharts.svg, // don't animate in old IE
+                  marginRight: 10,
+                  events: {
                     load: function () {
+                      console.log(session);
                       var series = this.series[0];
-                      session.subscribe('com.java.factory.on_arduino_value', function(y){
+                      var update_graph = function(y){
+                        console.log("Hello " + y);
                         var x = (new Date()).getTime();
                         series.addPoint([x, y], true, true);
+                      }
+
+                      session.subscribe('com.java.factory.on_arduino_value', update_graph)
+                      .then(function(reason){
+                        console.log("subscribed " + reason);
+                      }, function(reason){
+                        console.log("failed " + reason)
                       });
+
+                      update_graph(42);
                     }
                   }
                },
@@ -83,10 +94,10 @@
                },
                series: [{
                    name: 'Random data',
-                   data: []
+                   data: [{x:(new Date).getTime(), y:0}]
                }]
             });
-        });
+        };
 
 
          // fired when connection was lost (or could not be established)
