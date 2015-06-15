@@ -1,43 +1,15 @@
 <!DOCTYPE html>
-<!--###############################################################################
-##
-##  Copyright (C) 2014, Tavendo GmbH and/or collaborators. All rights reserved.
-## 
-##  Redistribution and use in source and binary forms, with or without
-##  modification, are permitted provided that the following conditions are met:
-## 
-##  1. Redistributions of source code must retain the above copyright notice,
-##     this list of conditions and the following disclaimer.
-## 
-##  2. Redistributions in binary form must reproduce the above copyright notice,
-##     this list of conditions and the following disclaimer in the documentation
-##     and/or other materials provided with the distribution.
-## 
-##  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-##  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-##  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-##  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-##  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-##  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-##  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-##  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-##  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-##  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-##  POSSIBILITY OF SUCH DAMAGE.
-##
-###############################################################################
--->
-
 <html>
    <body>
       <h1>#saygenial</h1>
       <p id="lastvalue"></p>
+      <div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
       <script src="http://autobahn.s3.amazonaws.com/autobahnjs/latest/autobahn.min.jgz"></script>
       <script src="jquery.js"></script>
-
+      <script src="http://code.highcharts.com/highcharts.js"></script>
+      <script src="http://code.highcharts.com/modules/exporting.js"></script>
       <script>
-         // the URL of the WAMP Router (Crossbar.io)
-         //
+      $(document).ready(function(){
          var wsuri;
          if (document.location.origin == "file://") {
             wsuri = "ws://127.0.0.1:8080/ws";
@@ -47,95 +19,74 @@
                         document.location.host + "/ws";
          }
 
-
-         // the WAMP connection to the Router
-         //
          var connection = new autobahn.Connection({
             url: wsuri,
             realm: "realm1"
          });
 
 
-         // timers
-         //
-         var t1, t2;
-
-
          // fired when connection is established and session attached
          //
-         connection.onopen = function (session, details) {
-
+        connection.onopen = function (session, details) {
             console.log("Connected");
+            
+            Highcharts.setOptions({
+              global: {
+                  useUTC: false
+              }
+            });
 
-            function on_arduino_value(msg) {
-               $.('#lastvalue').text(msg);
-            }
-
-            session.subscribe('com.java.factory.on_arduino_value', on_arduino_value);
-
-            // SUBSCRIBE to a topic and receive events
-            //
-            // function on_counter (args) {
-            //    var counter = args[0];
-            //    console.log("on_counter() event received with counter " + counter);
-            // }
-            // session.subscribe('com.example.oncounter', on_counter).then(
-            //    function (sub) {
-            //       console.log('subscribed to topic');
-            //    },
-            //    function (err) {
-            //       console.log('failed to subscribe to topic', err);
-            //    }
-            // );
-
-
-            // PUBLISH an event every second
-            //
-            // t1 = setInterval(function () {
-
-            //    session.publish('com.example.onhello', ['Hello from JavaScript (browser)']);
-            //    console.log("published to topic 'com.example.onhello'");
-            // }, 1000);
-
-
-            // REGISTER a procedure for remote calling
-            //
-            // function mul2 (args) {
-            //    var x = args[0];
-            //    var y = args[1];
-            //    console.log("mul2() called with " + x + " and " + y);
-            //    return x * y;
-            // }
-            // session.register('com.example.mul2', mul2).then(
-            //    function (reg) {
-            //       console.log('procedure registered');
-            //    },
-            //    function (err) {
-            //       console.log('failed to register procedure', err);
-            //    }
-            // );
-
-
-            // CALL a remote procedure every second
-            //
-            // var x = 0;
-
-            // t2 = setInterval(function () {
-
-            //    session.call('com.example.add2', [x, 18]).then(
-            //       function (res) {
-            //          console.log("add2() result:", res);
-            //       },
-            //       function (err) {
-            //          console.log("add2() error:", err);
-            //       }
-            //    );
-
-            //    x += 3;
-            // }, 1000);
-
-
-         };
+            $('#container').highcharts({
+               chart: {
+                   type: 'spline',
+                   animation: Highcharts.svg, // don't animate in old IE
+                   marginRight: 10,
+                   events: {
+                    load: function () {
+                      var series = this.series[0];
+                      session.subscribe('com.java.factory.on_arduino_value', function(y){
+                        var x = (new Date()).getTime();
+                        series.addPoint([x, y], true, true);
+                      });
+                    }
+                  }
+               },
+               title: {
+                   text: 'Live Arduino sensor data'
+               },
+               xAxis: {
+                   type: 'datetime',
+                   tickPixelInterval: 150
+               },
+               yAxis: {
+                   title: {
+                       text: 'Value'
+                   },
+                   plotLines: [{
+                       value: 0,
+                       width: 1,
+                       color: '#808080'
+                   }]
+               },
+               tooltip: {
+                   formatter: function () {
+                       return '<b>' + this.series.name + '</b><br/>' +
+                           Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>' +
+                           Highcharts.numberFormat(this.y, 2);
+                   }
+               },
+               legend: {
+                   enabled: false
+               },
+               exporting: {
+                   enabled: false
+               },
+               series: [{
+                   name: 'Random data',
+                   data: []
+               }]
+            });
+        });
 
 
          // fired when connection was lost (or could not be established)
@@ -156,7 +107,7 @@
          // now actually open the connection
          //
          connection.open();
-
+      });
       </script>
    </body>
 </html>
